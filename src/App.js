@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 
-// Replace with your Render backend URL
-const API_URL = 'https://verification-backend-evon.onrender.com/api';
+// Replace with your Render backend URL if deployed, otherwise keep localhost
+// const API_URL = 'https://verification-backend-evon.onrender.com/api';
+const API_URL = 'http://localhost:5000/api';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -13,7 +15,7 @@ export default function App() {
   const [pickUpCheck, setPickUpCheck] = useState(false);
   const [speakToHuman, setSpeakToHuman] = useState(false);
 
-  // Fetch settings from backend on mount
+  // Fetch settings from backend on mount if authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchSettings();
@@ -25,11 +27,13 @@ export default function App() {
       setLoading(true);
       const response = await fetch(`${API_URL}/settings`);
       const data = await response.json();
-      
+
       if (response.ok) {
         setBookAppointment(data.appointment || false);
         setPickUpCheck(data.pickup || false);
         setSpeakToHuman(data.speakToHuman || false);
+      } else {
+        console.error('Failed to fetch settings');
       }
     } catch (err) {
       console.error('Error fetching settings:', err);
@@ -57,25 +61,22 @@ export default function App() {
       const data = await response.json();
 
       if (response.ok) {
-        // Update local state with server response
-        setBookAppointment(data.settings.appointment);
-        setPickUpCheck(data.settings.pickup);
-        setSpeakToHuman(data.settings.speakToHuman);
+        toast.success('Settings updated successfully');
+        fetchSettings();
       } else {
-        console.error('Failed to update settings');
-        // Revert the change
+        toast.error('Failed to update settings');
         fetchSettings();
       }
     } catch (err) {
       console.error('Error updating settings:', err);
-      // Revert the change
+      toast.error(`Error updating settings: ${err?.message}`);
       fetchSettings();
     }
   };
 
   const handleToggle = (field, currentValue) => {
     const newValue = !currentValue;
-    
+
     // Optimistically update UI
     if (field === 'appointment') setBookAppointment(newValue);
     if (field === 'pickup') setPickUpCheck(newValue);
@@ -85,13 +86,37 @@ export default function App() {
     updateSettings(field, newValue);
   };
 
-  const handleLogin = () => {
+  // 🔄 UPDATED LOGIN FUNCTION 🔄
+  const handleLogin = async () => {
     setError('');
-    
-    if (email === 'admin@example.com' && password === 'admin123') {
-      setIsAuthenticated(true);
-    } else {
-      setError('Invalid email or password');
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setIsAuthenticated(true);
+        setError('');
+        toast.success('Login successful! 🎉');
+      } else {
+        // Handle 401 Unauthorized or other failure status
+        setError(data.message || 'Login failed. Please check your credentials.');
+        toast.error(data.message || 'Login failed.');
+      }
+    } catch (err) {
+      console.error('Login API Error:', err);
+      setError('Network error. Could not connect to the server.');
+      toast.error('Network error. Could not connect to the server.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -113,7 +138,7 @@ export default function App() {
         <div style={styles.loginCard}>
           <h1 style={styles.loginTitle}>Admin Login</h1>
           <p style={styles.loginSubtitle}>Please enter your credentials</p>
-          
+
           <div style={styles.loginForm}>
             <div style={styles.formGroup}>
               <label style={styles.label}>Email</label>
@@ -126,7 +151,7 @@ export default function App() {
                 placeholder="admin@example.com"
               />
             </div>
-            
+
             <div style={styles.formGroup}>
               <label style={styles.label}>Password</label>
               <input
@@ -138,13 +163,13 @@ export default function App() {
                 placeholder="Enter password"
               />
             </div>
-            
+
             {error && <div style={styles.error}>{error}</div>}
-            
-            <button onClick={handleLogin} style={styles.loginButton}>
-              Login
+
+            <button onClick={handleLogin} style={styles.loginButton} disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
             </button>
-            
+
             <div style={styles.demoCredentials}>
               <p style={styles.demoText}>Demo credentials:</p>
               <p style={styles.demoText}>Email: admin@example.com</p>
@@ -167,7 +192,9 @@ export default function App() {
 
       {loading ? (
         <div style={styles.loadingContainer}>
-          <div style={styles.loader}></div>
+          {/* Note: I cannot define the @keyframes spin animation here, 
+              but the CSS file you provided handles it. */}
+          <div style={styles.loader}></div> 
           <p style={styles.loadingText}>Loading settings...</p>
         </div>
       ) : (
@@ -179,14 +206,14 @@ export default function App() {
               <div
                 style={{
                   ...styles.toggle,
-                  ...(bookAppointment ? styles.toggleActive : {})
+                  ...(bookAppointment ? styles.toggleActive : {}),
                 }}
                 onClick={() => handleToggle('appointment', bookAppointment)}
               >
                 <div
                   style={{
                     ...styles.toggleCircle,
-                    ...(bookAppointment ? styles.toggleCircleActive : {})
+                    ...(bookAppointment ? styles.toggleCircleActive : {}),
                   }}
                 />
               </div>
@@ -203,14 +230,14 @@ export default function App() {
               <div
                 style={{
                   ...styles.toggle,
-                  ...(pickUpCheck ? styles.toggleActive : {})
+                  ...(pickUpCheck ? styles.toggleActive : {}),
                 }}
                 onClick={() => handleToggle('pickup', pickUpCheck)}
               >
                 <div
                   style={{
                     ...styles.toggleCircle,
-                    ...(pickUpCheck ? styles.toggleCircleActive : {})
+                    ...(pickUpCheck ? styles.toggleCircleActive : {}),
                   }}
                 />
               </div>
@@ -227,14 +254,14 @@ export default function App() {
               <div
                 style={{
                   ...styles.toggle,
-                  ...(speakToHuman ? styles.toggleActive : {})
+                  ...(speakToHuman ? styles.toggleActive : {}),
                 }}
                 onClick={() => handleToggle('speakToHuman', speakToHuman)}
               >
                 <div
                   style={{
                     ...styles.toggleCircle,
-                    ...(speakToHuman ? styles.toggleCircleActive : {})
+                    ...(speakToHuman ? styles.toggleCircleActive : {}),
                   }}
                 />
               </div>
@@ -379,7 +406,8 @@ const styles = {
     borderRadius: '50%',
     width: '50px',
     height: '50px',
-    animation: 'spin 1s linear infinite',
+    // The animation 'spin' is defined in your global CSS file
+    animation: 'spin 1s linear infinite', 
   },
   loadingText: {
     marginTop: '20px',
