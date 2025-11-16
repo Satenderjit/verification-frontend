@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 
-// Replace with your Render backend URL if deployed, otherwise keep localhost
+// Replace with your Render backend URL if deployed, otherwise  localhost
 const API_URL = 'https://verification-backend-evon.onrender.com/api';
 // const API_URL = 'http://localhost:5000/api';
 
