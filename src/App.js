@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-// Replace with your Render backend URL if deployed, otherwise  localhost
-const API_URL = 'https://verification-backend-evon.onrender.com/api';
-// const API_URL = 'http://localhost:5000/api';
+// 👇 CHANGE THIS TO YOUR BACKEND URL
+// If testing locally, use: http://localhost:5000/api
+// If deployed on Vercel/Render, use: https://your-app.onrender.com/api
+const API_URL = 'http://localhost:5000/api';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -11,17 +13,20 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Settings State
   const [bookAppointment, setBookAppointment] = useState(false);
   const [pickUpCheck, setPickUpCheck] = useState(false);
   const [speakToHuman, setSpeakToHuman] = useState(false);
 
-  // Fetch settings from backend on mount if authenticated
+  // Fetch settings on mount if logged in
   useEffect(() => {
     if (isAuthenticated) {
       fetchSettings();
     }
   }, [isAuthenticated]);
 
+  // 1️⃣ GET SETTINGS (Matches backend GET /api/settings)
   const fetchSettings = async () => {
     try {
       setLoading(true);
@@ -42,15 +47,20 @@ export default function App() {
     }
   };
 
-  const updateSettings = async (field, value) => {
+  // 2️⃣ UPDATE SETTINGS (Matches backend PUT /api/settings)
+  const updateSettings = async (field, newValue) => {
     try {
+      // Construct the full object because the backend updates the whole document
+      // or specific fields depending on your controller. 
+      // Sending all 3 ensures consistency.
       const updatedSettings = {
-        appointment: field === 'appointment' ? value : bookAppointment,
-        pickup: field === 'pickup' ? value : pickUpCheck,
-        speakToHuman: field === 'speakToHuman' ? value : speakToHuman,
+        appointment: field === 'appointment' ? newValue : bookAppointment,
+        pickup: field === 'pickup' ? newValue : pickUpCheck,
+        speakToHuman: field === 'speakToHuman' ? newValue : speakToHuman,
       };
 
-      const response = await fetch(`${API_URL}/settings/update`, {
+      // ⚠️ UPDATED ENDPOINT: Removed "/update" to match route: router.put("/", ...)
+      const response = await fetch(`${API_URL}/settings`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -58,14 +68,15 @@ export default function App() {
         body: JSON.stringify(updatedSettings),
       });
 
-      const data = await response.json();
-
       if (response.ok) {
         toast.success('Settings updated successfully');
-        fetchSettings();
+        // Update local state logic is handled in handleToggle, 
+        // but fetching ensures we are in sync with DB
+        fetchSettings(); 
       } else {
         toast.error('Failed to update settings');
-        fetchSettings();
+        // Revert UI if failed (optional, but good UX)
+        fetchSettings(); 
       }
     } catch (err) {
       console.error('Error updating settings:', err);
@@ -74,19 +85,20 @@ export default function App() {
     }
   };
 
+  // Handle Toggle Click
   const handleToggle = (field, currentValue) => {
     const newValue = !currentValue;
 
-    // Optimistically update UI
+    // 1. Optimistically update UI (Instant feedback)
     if (field === 'appointment') setBookAppointment(newValue);
     if (field === 'pickup') setPickUpCheck(newValue);
     if (field === 'speakToHuman') setSpeakToHuman(newValue);
 
-    // Update backend
+    // 2. Send to Backend
     updateSettings(field, newValue);
   };
 
-  // 🔄 UPDATED LOGIN FUNCTION 🔄
+  // 3️⃣ LOGIN (Matches backend POST /api/auth/login)
   const handleLogin = async () => {
     setError('');
     setLoading(true);
@@ -107,7 +119,6 @@ export default function App() {
         setError('');
         toast.success('Login successful! 🎉');
       } else {
-        // Handle 401 Unauthorized or other failure status
         setError(data.message || 'Login failed. Please check your credentials.');
         toast.error(data.message || 'Login failed.');
       }
@@ -132,9 +143,11 @@ export default function App() {
     }
   };
 
+  // --- RENDER LOGIN SCREEN ---
   if (!isAuthenticated) {
     return (
       <div style={styles.loginContainer}>
+        <ToastContainer position="top-right" autoClose={3000} />
         <div style={styles.loginCard}>
           <h1 style={styles.loginTitle}>Admin Login</h1>
           <p style={styles.loginSubtitle}>Please enter your credentials</p>
@@ -181,8 +194,10 @@ export default function App() {
     );
   }
 
+  // --- RENDER DASHBOARD SCREEN ---
   return (
     <div style={styles.container}>
+      <ToastContainer position="top-right" autoClose={2000} />
       <header style={styles.header}>
         <h1 style={styles.title}>Admin Dashboard</h1>
         <button onClick={handleLogout} style={styles.logoutButton}>
@@ -190,15 +205,14 @@ export default function App() {
         </button>
       </header>
 
-      {loading ? (
+      {loading && !bookAppointment && !pickUpCheck && !speakToHuman ? (
         <div style={styles.loadingContainer}>
-          {/* Note: I cannot define the @keyframes spin animation here, 
-              but the CSS file you provided handles it. */}
-          <div style={styles.loader}></div> 
+          <div style={styles.loader}></div>
           <p style={styles.loadingText}>Loading settings...</p>
         </div>
       ) : (
         <div style={styles.cardsContainer}>
+          {/* Card 1: Book Appointment */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Book Appointment</h2>
             <p style={styles.cardDescription}>Click to schedule an appointment</p>
@@ -223,6 +237,7 @@ export default function App() {
             </p>
           </div>
 
+          {/* Card 2: Pick Up Check */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Pick Up the Check</h2>
             <p style={styles.cardDescription}>Click to process check pickup</p>
@@ -247,6 +262,7 @@ export default function App() {
             </p>
           </div>
 
+          {/* Card 3: Speak to Human */}
           <div style={styles.card}>
             <h2 style={styles.cardTitle}>Ask to Speak to Human</h2>
             <p style={styles.cardDescription}>Click to connect with a representative</p>
@@ -276,6 +292,7 @@ export default function App() {
   );
 }
 
+// Styles Object (Unchanged)
 const styles = {
   loginContainer: {
     minHeight: '100vh',
@@ -406,8 +423,7 @@ const styles = {
     borderRadius: '50%',
     width: '50px',
     height: '50px',
-    // The animation 'spin' is defined in your global CSS file
-    animation: 'spin 1s linear infinite', 
+    animation: 'spin 1s linear infinite',
   },
   loadingText: {
     marginTop: '20px',
