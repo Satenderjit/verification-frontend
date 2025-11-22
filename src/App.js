@@ -2,10 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// 👇 CHANGE THIS TO YOUR BACKEND URL
-// If testing locally, use: http://localhost:5000/api
-// If deployed on Vercel/Render, use: https://your-app.onrender.com/api
-const API_URL = 'http://localhost:5000/api';
+// 👇 UPDATED TO YOUR LIVE RENDER BACKEND
+const API_URL = 'https://verification-backend-evon.onrender.com/api';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,7 +24,7 @@ export default function App() {
     }
   }, [isAuthenticated]);
 
-  // 1️⃣ GET SETTINGS (Matches backend GET /api/settings)
+  // 1️⃣ GET SETTINGS
   const fetchSettings = async () => {
     try {
       setLoading(true);
@@ -47,19 +45,15 @@ export default function App() {
     }
   };
 
-  // 2️⃣ UPDATE SETTINGS (Matches backend PUT /api/settings)
+  // 2️⃣ UPDATE SETTINGS
   const updateSettings = async (field, newValue) => {
     try {
-      // Construct the full object because the backend updates the whole document
-      // or specific fields depending on your controller. 
-      // Sending all 3 ensures consistency.
       const updatedSettings = {
         appointment: field === 'appointment' ? newValue : bookAppointment,
         pickup: field === 'pickup' ? newValue : pickUpCheck,
         speakToHuman: field === 'speakToHuman' ? newValue : speakToHuman,
       };
 
-      // ⚠️ UPDATED ENDPOINT: Removed "/update" to match route: router.put("/", ...)
       const response = await fetch(`${API_URL}/settings`, {
         method: 'PUT',
         headers: {
@@ -70,12 +64,9 @@ export default function App() {
 
       if (response.ok) {
         toast.success('Settings updated successfully');
-        // Update local state logic is handled in handleToggle, 
-        // but fetching ensures we are in sync with DB
         fetchSettings(); 
       } else {
         toast.error('Failed to update settings');
-        // Revert UI if failed (optional, but good UX)
         fetchSettings(); 
       }
     } catch (err) {
@@ -89,7 +80,7 @@ export default function App() {
   const handleToggle = (field, currentValue) => {
     const newValue = !currentValue;
 
-    // 1. Optimistically update UI (Instant feedback)
+    // 1. Optimistically update UI
     if (field === 'appointment') setBookAppointment(newValue);
     if (field === 'pickup') setPickUpCheck(newValue);
     if (field === 'speakToHuman') setSpeakToHuman(newValue);
@@ -98,7 +89,7 @@ export default function App() {
     updateSettings(field, newValue);
   };
 
-  // 3️⃣ LOGIN (Matches backend POST /api/auth/login)
+  // 3️⃣ LOGIN
   const handleLogin = async () => {
     setError('');
     setLoading(true);
@@ -292,7 +283,6 @@ export default function App() {
   );
 }
 
-// Styles Object (Unchanged)
 const styles = {
   loginContainer: {
     minHeight: '100vh',
