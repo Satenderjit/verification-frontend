@@ -1,487 +1,308 @@
-import React, { useState, useEffect } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useState, useEffect } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
-// 👇 UPDATED TO YOUR LIVE RENDER BACKEND
-const API_URL = 'https://verification-backend-evon.onrender.com/api';
+// CHANGE THIS TO YOUR LIVE BACKEND URL
+const API_URL = "https://verification-backend-evon.onrender.com/api";
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Settings State
-  const [bookAppointment, setBookAppointment] = useState(false);
-  const [pickUpCheck, setPickUpCheck] = useState(false);
+  // Settings
+  const [appointment, setAppointment] = useState(false);
+  const [pickup, setPickup] = useState(false);
   const [speakToHuman, setSpeakToHuman] = useState(false);
 
-  // Fetch settings on mount if logged in
+  // Load settings after login
   useEffect(() => {
     if (isAuthenticated) {
-      fetchSettings();
+      loadSettings();
     }
   }, [isAuthenticated]);
 
-  // 1️⃣ GET SETTINGS
-  const fetchSettings = async () => {
+  // GET Settings
+  const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/settings`);
-      const data = await response.json();
 
-      if (response.ok) {
-        setBookAppointment(data.appointment || false);
-        setPickUpCheck(data.pickup || false);
-        setSpeakToHuman(data.speakToHuman || false);
-      } else {
-        console.error('Failed to fetch settings');
+      let res = await fetch(`${API_URL}/settings`);
+      let data = await res.json();
+
+      if (res.ok) {
+        setAppointment(data.appointment ?? false);
+        setPickup(data.pickup ?? false);
+        setSpeakToHuman(data.speakToHuman ?? false);
       }
-    } catch (err) {
-      console.error('Error fetching settings:', err);
+    } catch (error) {
+      console.log("Settings fetch error", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // 2️⃣ UPDATE SETTINGS
+  // UPDATE Settings
   const updateSettings = async (field, newValue) => {
     try {
-      const updatedSettings = {
-        appointment: field === 'appointment' ? newValue : bookAppointment,
-        pickup: field === 'pickup' ? newValue : pickUpCheck,
-        speakToHuman: field === 'speakToHuman' ? newValue : speakToHuman,
+      let body = {
+        appointment:
+          field === "appointment" ? newValue : appointment,
+        pickup:
+          field === "pickup" ? newValue : pickup,
+        speakToHuman:
+          field === "speakToHuman" ? newValue : speakToHuman,
       };
 
-      const response = await fetch(`${API_URL}/settings`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updatedSettings),
+      const res = await fetch(`${API_URL}/settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
       });
 
-      if (response.ok) {
-        toast.success('Settings updated successfully');
-        fetchSettings(); 
+      if (res.ok) {
+        toast.success("Settings updated!");
+        loadSettings();
       } else {
-        toast.error('Failed to update settings');
-        fetchSettings(); 
+        toast.error("Update failed");
       }
     } catch (err) {
-      console.error('Error updating settings:', err);
-      toast.error(`Error updating settings: ${err?.message}`);
-      fetchSettings();
+      toast.error("Server error updating settings");
     }
   };
 
-  // Handle Toggle Click
-  const handleToggle = (field, currentValue) => {
+  // On Toggle Click
+  const toggleSwitch = (field, currentValue) => {
     const newValue = !currentValue;
 
-    // 1. Optimistically update UI
-    if (field === 'appointment') setBookAppointment(newValue);
-    if (field === 'pickup') setPickUpCheck(newValue);
-    if (field === 'speakToHuman') setSpeakToHuman(newValue);
+    if (field === "appointment") setAppointment(newValue);
+    if (field === "pickup") setPickup(newValue);
+    if (field === "speakToHuman") setSpeakToHuman(newValue);
 
-    // 2. Send to Backend
     updateSettings(field, newValue);
   };
 
-  // 3️⃣ LOGIN
-  const handleLogin = async () => {
-    setError('');
-    setLoading(true);
-
+  // LOGIN
+  const login = async () => {
     try {
-      const response = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      setError("");
+      setLoading(true);
+
+      let res = await fetch(`${API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      let data = await res.json();
 
-      if (response.ok && data.success) {
+      if (res.ok && data.success) {
+        toast.success("Login successful!");
         setIsAuthenticated(true);
-        setError('');
-        toast.success('Login successful! 🎉');
       } else {
-        setError(data.message || 'Login failed. Please check your credentials.');
-        toast.error(data.message || 'Login failed.');
+        setError(data.message);
+        toast.error(data.message);
       }
-    } catch (err) {
-      console.error('Login API Error:', err);
-      setError('Network error. Could not connect to the server.');
-      toast.error('Network error. Could not connect to the server.');
+    } catch (error) {
+      toast.error("Network error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  // LOGOUT
+  const logout = () => {
     setIsAuthenticated(false);
-    setEmail('');
-    setPassword('');
+    setEmail("");
+    setPassword("");
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleLogin();
-    }
-  };
-
-  // --- RENDER LOGIN SCREEN ---
+  // LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div style={styles.loginContainer}>
-        <ToastContainer position="top-right" autoClose={3000} />
-        <div style={styles.loginCard}>
-          <h1 style={styles.loginTitle}>Admin Login</h1>
-          <p style={styles.loginSubtitle}>Please enter your credentials</p>
+        <ToastContainer />
+        <div style={styles.loginBox}>
+          <h1>Admin Login</h1>
 
-          <div style={styles.loginForm}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyPress={handleKeyPress}
-                style={styles.input}
-                placeholder="admin@example.com"
-              />
-            </div>
+          <input
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && login()}
+          />
 
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyPress={handleKeyPress}
-                style={styles.input}
-                placeholder="Enter password"
-              />
-            </div>
+          <input
+            style={styles.input}
+            placeholder="Password"
+            type="password"
+            value={password}
+            onKeyPress={(e) => e.key === "Enter" && login()}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
-            {error && <div style={styles.error}>{error}</div>}
+          {error && <p style={styles.error}>{error}</p>}
 
-            <button onClick={handleLogin} style={styles.loginButton} disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-
-            <div style={styles.demoCredentials}>
-              <p style={styles.demoText}>Demo credentials:</p>
-              <p style={styles.demoText}>Email: admin@example.com</p>
-              <p style={styles.demoText}>Password: admin123</p>
-            </div>
-          </div>
+          <button style={styles.btn} onClick={login}>
+            {loading ? "Logging in..." : "Login"}
+          </button>
         </div>
       </div>
     );
   }
 
-  // --- RENDER DASHBOARD SCREEN ---
+  // DASHBOARD UI
   return (
     <div style={styles.container}>
-      <ToastContainer position="top-right" autoClose={2000} />
-      <header style={styles.header}>
-        <h1 style={styles.title}>Admin Dashboard</h1>
-        <button onClick={handleLogout} style={styles.logoutButton}>
+      <ToastContainer />
+      <div style={styles.header}>
+        <h1>Admin Dashboard</h1>
+        <button style={styles.logoutBtn} onClick={logout}>
           Logout
         </button>
-      </header>
+      </div>
 
-      {loading && !bookAppointment && !pickUpCheck && !speakToHuman ? (
-        <div style={styles.loadingContainer}>
-          <div style={styles.loader}></div>
-          <p style={styles.loadingText}>Loading settings...</p>
-        </div>
-      ) : (
-        <div style={styles.cardsContainer}>
-          {/* Card 1: Book Appointment */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Book Appointment</h2>
-            <p style={styles.cardDescription}>Click to schedule an appointment</p>
-            <div style={styles.toggleContainer}>
-              <div
-                style={{
-                  ...styles.toggle,
-                  ...(bookAppointment ? styles.toggleActive : {}),
-                }}
-                onClick={() => handleToggle('appointment', bookAppointment)}
-              >
-                <div
-                  style={{
-                    ...styles.toggleCircle,
-                    ...(bookAppointment ? styles.toggleCircleActive : {}),
-                  }}
-                />
-              </div>
-            </div>
-            <p style={styles.statusText}>
-              Status: {bookAppointment ? 'Enabled' : 'Disabled'}
-            </p>
-          </div>
+      <div style={styles.grid}>
+        {/* Book Appointment */}
+        <SettingCard
+          title="Book Appointment"
+          status={appointment}
+          onToggle={() => toggleSwitch("appointment", appointment)}
+        />
 
-          {/* Card 2: Pick Up Check */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Pick Up the Check</h2>
-            <p style={styles.cardDescription}>Click to process check pickup</p>
-            <div style={styles.toggleContainer}>
-              <div
-                style={{
-                  ...styles.toggle,
-                  ...(pickUpCheck ? styles.toggleActive : {}),
-                }}
-                onClick={() => handleToggle('pickup', pickUpCheck)}
-              >
-                <div
-                  style={{
-                    ...styles.toggleCircle,
-                    ...(pickUpCheck ? styles.toggleCircleActive : {}),
-                  }}
-                />
-              </div>
-            </div>
-            <p style={styles.statusText}>
-              Status: {pickUpCheck ? 'Enabled' : 'Disabled'}
-            </p>
-          </div>
+        {/* Pick Up Check */}
+        <SettingCard
+          title="Pick Up the Check"
+          status={pickup}
+          onToggle={() => toggleSwitch("pickup", pickup)}
+        />
 
-          {/* Card 3: Speak to Human */}
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Ask to Speak to Human</h2>
-            <p style={styles.cardDescription}>Click to connect with a representative</p>
-            <div style={styles.toggleContainer}>
-              <div
-                style={{
-                  ...styles.toggle,
-                  ...(speakToHuman ? styles.toggleActive : {}),
-                }}
-                onClick={() => handleToggle('speakToHuman', speakToHuman)}
-              >
-                <div
-                  style={{
-                    ...styles.toggleCircle,
-                    ...(speakToHuman ? styles.toggleCircleActive : {}),
-                  }}
-                />
-              </div>
-            </div>
-            <p style={styles.statusText}>
-              Status: {speakToHuman ? 'Enabled' : 'Disabled'}
-            </p>
-          </div>
-        </div>
-      )}
+        {/* Speak to Human */}
+        <SettingCard
+          title="Ask to Speak to Human"
+          status={speakToHuman}
+          onToggle={() => toggleSwitch("speakToHuman", speakToHuman)}
+        />
+      </div>
     </div>
   );
 }
 
+// Small Component
+function SettingCard({ title, status, onToggle }) {
+  return (
+    <div style={styles.card}>
+      <h2>{title}</h2>
+
+      <div style={styles.toggleTrack} onClick={onToggle}>
+        <div
+          style={{
+            ...styles.toggleCircle,
+            ...(status ? styles.toggleOn : {}),
+          }}
+        />
+      </div>
+
+      <p>Status: {status ? "Enabled" : "Disabled"}</p>
+    </div>
+  );
+}
+
+// Styles
 const styles = {
   loginContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "#f4f4f4",
   },
-  loginCard: {
-    backgroundColor: 'white',
-    padding: '48px',
-    borderRadius: '12px',
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-    width: '100%',
-    maxWidth: '400px',
-  },
-  loginTitle: {
-    fontSize: '28px',
-    fontWeight: '700',
-    marginBottom: '8px',
-    color: '#1a1a1a',
-  },
-  loginSubtitle: {
-    fontSize: '14px',
-    color: '#666',
-    marginBottom: '32px',
-  },
-  loginForm: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  formGroup: {
-    marginBottom: '20px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '500',
-    marginBottom: '8px',
-    color: '#333',
+  loginBox: {
+    width: 350,
+    padding: 30,
+    background: "white",
+    borderRadius: 12,
+    boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+    textAlign: "center",
   },
   input: {
-    width: '100%',
-    padding: '12px',
-    fontSize: '14px',
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    boxSizing: 'border-box',
-    outline: 'none',
-    transition: 'border-color 0.2s',
+    width: "100%",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    border: "1px solid #ccc",
+    fontSize: 16,
   },
-  error: {
-    backgroundColor: '#fee',
-    color: '#c33',
-    padding: '12px',
-    borderRadius: '6px',
-    fontSize: '14px',
-    marginBottom: '20px',
+  btn: {
+    width: "100%",
+    padding: 12,
+    background: "#ef4444",
+    color: "white",
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 16,
+    fontWeight: "bold",
   },
-  loginButton: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    padding: '14px',
-    fontSize: '16px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
-  },
-  demoCredentials: {
-    marginTop: '24px',
-    padding: '16px',
-    backgroundColor: '#f9f9f9',
-    borderRadius: '6px',
-    fontSize: '12px',
-    color: '#666',
-  },
-  demoText: {
-    margin: '4px 0',
-  },
+  error: { color: "red" },
+
   container: {
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-    padding: '40px 20px',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    padding: 30,
+    background: "#f5f5f5",
+    minHeight: "100vh",
   },
   header: {
-    backgroundColor: 'white',
-    padding: '24px 32px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '40px',
-    maxWidth: '1200px',
-    margin: '0 auto 40px',
+    display: "flex",
+    justifyContent: "space-between",
+    marginBottom: 30,
   },
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    margin: 0,
-    color: '#1a1a1a',
+  logoutBtn: {
+    padding: "10px 20px",
+    background: "#ef4444",
+    color: "white",
+    borderRadius: 8,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 16,
   },
-  logoutButton: {
-    backgroundColor: '#ef4444',
-    color: 'white',
-    padding: '12px 32px',
-    fontSize: '16px',
-    fontWeight: '600',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
+
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: 20,
   },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '400px',
-  },
-  loader: {
-    border: '4px solid #f3f3f3',
-    borderTop: '4px solid #ef4444',
-    borderRadius: '50%',
-    width: '50px',
-    height: '50px',
-    animation: 'spin 1s linear infinite',
-  },
-  loadingText: {
-    marginTop: '20px',
-    fontSize: '16px',
-    color: '#666',
-  },
-  cardsContainer: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-    gap: '24px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
+
   card: {
-    backgroundColor: 'white',
-    padding: '32px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
+    background: "white",
+    padding: 25,
+    textAlign: "center",
+    borderRadius: 12,
+    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
   },
-  cardTitle: {
-    fontSize: '22px',
-    fontWeight: '600',
-    marginBottom: '12px',
-    color: '#1a1a1a',
+
+  toggleTrack: {
+    width: 60,
+    height: 32,
+    background: "#ccc",
+    borderRadius: 20,
+    margin: "10px auto",
+    position: "relative",
+    cursor: "pointer",
   },
-  cardDescription: {
-    fontSize: '14px',
-    color: '#666',
-    marginBottom: '24px',
-  },
-  toggleContainer: {
-    marginTop: 'auto',
-    marginBottom: '12px',
-  },
-  toggle: {
-    width: '56px',
-    height: '32px',
-    backgroundColor: '#ddd',
-    borderRadius: '16px',
-    cursor: 'pointer',
-    position: 'relative',
-    transition: 'background-color 0.3s',
-  },
-  toggleActive: {
-    backgroundColor: '#4ade80',
-  },
+
   toggleCircle: {
-    width: '24px',
-    height: '24px',
-    backgroundColor: 'white',
-    borderRadius: '50%',
-    position: 'absolute',
-    top: '4px',
-    left: '4px',
-    transition: 'transform 0.3s',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
+    width: 26,
+    height: 26,
+    background: "white",
+    borderRadius: "50%",
+    position: "absolute",
+    top: 3,
+    left: 3,
+    transition: "0.3s",
   },
-  toggleCircleActive: {
-    transform: 'translateX(24px)',
-  },
-  statusText: {
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#666',
-    marginTop: '8px',
-  },
+
+  toggleOn: { transform: "translateX(28px)", background: "white" },
 };
